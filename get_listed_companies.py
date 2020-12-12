@@ -1,10 +1,14 @@
 from bs4 import BeautifulSoup
 import yfinance as yf
+from pymongo import MongoClient
 import requests
 import sys
 from models.company import Company
 
-def get_listed_companies(market, marketfrom=0, marketto=0):
+client = MongoClient('mongodb://localhost:27017/')
+db = client['jyu_tls_research']
+
+def get_listed_companies(market, marketfrom=0, marketto=0, verbose=True):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36'
         }
@@ -32,19 +36,46 @@ def get_listed_companies(market, marketfrom=0, marketto=0):
         ISIN = cells[3].get_text()
         #sector = cells[4].get_text()
         ICB = cells[5].get_text()
-        print(name, symbol)
+        if verbose == True: print(name, symbol)
 
-        ticker = yf.Ticker(symbol + markets_suffix[CCY])
-        employees = ticker.info["fullTimeEmployees"]
-        industry = ticker.info["industry"]
-        sector = ticker.info["sector"]
-        website = ticker.info["website"]
-        
-        company = Company(name, symbol, CCY, ISIN, ICB, employees, industry, sector, website)
-        companies.append(company)
+        try:
+            ticker = yf.Ticker(symbol + markets_suffix[CCY])
+            employees = ticker.info["fullTimeEmployees"]
+            industry = ticker.info["industry"]
+            sector = ticker.info["sector"]
+            website = ticker.info["website"]
+            
+            company = Company(name, symbol, CCY, ISIN, ICB, employees, industry, sector, website)
+            companies.append(company)
+        except KeyError as err:
+            print("KeyError: " + str(err))
+        except ValueError as err:
+            print("ValueError: " + str(err))
 
     return companies
 
+def get_listed_companies_from_cache(market, marketfrom=0, marketto=0, verbose=True):
+    collection = db['nasdaq_'+market]
+    entries = collection.find({})
+    companies = []
+    for entry in entries:
+        company = Company(entry["name"], entry["symbol"], entry["CCY"], entry["ISIN"], entry["ICB"], entry["employees"], entry["industry"], entry["sector"], entry["website"])
+        companies.append(company)
+    return companies
+
 if __name__ == '__main__':
-    companies = get_listed_companies("helsinki", 0, 1)
-    print(companies[0])
+    market = "helsinki"
+    collection = db['nasdaq_'+market]
+
+    companies = get_listed_companies(market)
+    # Puutteelliset:
+    # Yleiselektroniikka Oyj YEINT
+    # Panostaja Oyj PNA1V
+    # Investors House Oyj INVEST
+    # Elecster Oyj A ELEAV
+    # AS Tallink Grupp FDR TALLINK
+    # Lehto Group Uudet 2020 LEHTON0120
+    for company in companies:
+        collection.insert_one(company.__dict__)
+
+    client.close()
