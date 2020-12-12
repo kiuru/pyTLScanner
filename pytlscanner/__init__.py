@@ -1,0 +1,1 @@
+from .ssllabs import resultsFromCache
