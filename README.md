@@ -31,3 +31,14 @@ Python dependencies:
     "ssllabs_result.endpoints.0.details.httpStatusCode," +
     "ssllabs_result.endpoints.0.details.httpForwarding"
     mongoexport --collection=ssllabs_helsinki --db=jyu_tls_research --type=csv --fields=$fields --out=events.csv
+
+
+## Subdomains scanner with Anubis
+
+    pip3 install anubis-netsec
+    sudo apt install nmap python3-pip python-dev libssl-dev libffi-dev
+
+## Get domains
+
+    for i in $(cat data/domains.txt|head -2); do anubis -tip $i -o data/domains_result; done
+
