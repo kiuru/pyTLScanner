@@ -13,7 +13,10 @@ def run_scan(market, debug, marketfrom, marketto):
         ext_domain = tldextract.extract(company.website)
         domain = ext_domain.domain + "." + ext_domain.suffix
         domain_list.append(domain)
-    pprint(list(set(domain_list)))
+
+    domain_list = list(set(domain_list))
+    for domain in domain_list:
+        print(domain)
 
 if __name__ == '__main__':
     run_scan(args.market, args.debug, int(args.companiesfrom), int(args.companiesto))

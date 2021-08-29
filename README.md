@@ -1,17 +1,23 @@
 # pyTLScanner
 
+## Virtualenv
+
+    python -m venv pytlscanner-env
+    .\pytlscanner-env\Scripts\activate
+    deactivate
+
 ## Install dependencies
 
 - Python 3
 - MongoDB
 
 Python dependencies:
-
-    pip3 install -r requirements.txt
+    
+    pip install -r requirements.txt
 
 ## Run scanner
 
-    python3 pytlscanner.py --market="helsinki" --limit-companies-from 0 --limit-companies-to 1
+    python pytlscanner.py --market="helsinki" --limit-companies-from 0 --limit-companies-to 1
 
 ## mongoexport
 
@@ -32,13 +38,20 @@ Python dependencies:
     "ssllabs_result.endpoints.0.details.httpForwarding"
     mongoexport --collection=ssllabs_helsinki --db=jyu_tls_research --type=csv --fields=$fields --out=events.csv
 
+## Get list of domains
+
+    python subdomains.py --market="helsinki" --limit-companies-from 0 --limit-companies-to 500 > data/domains.txt
 
 ## Subdomains scanner with Anubis
 
-    pip3 install anubis-netsec
+    pip install anubis-netsec
     sudo apt install nmap python3-pip python-dev libssl-dev libffi-dev
 
-## Get domains
+## On Windows install nmap
+
+    https://nmap.org/download.html#windows
+
+## Get subdomains
 
     for i in $(cat data/domains.txt|head -2); do anubis -tip $i -o data/domains_result; done
 

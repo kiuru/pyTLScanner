@@ -1,14 +1,25 @@
 from bs4 import BeautifulSoup
-import yfinance as yf
 from pymongo import MongoClient
 import requests
-import sys
 from models.company import Company
 
 client = MongoClient('mongodb://localhost:27017/')
 db = client['jyu_tls_research']
 
 def get_listed_companies(market, marketfrom=0, marketto=0, verbose=True):
+    """Get listed companies from Nasdaq's web site
+
+    Args:
+        market ([type]): Target market (e.g. helsinki)
+        marketfrom (int, optional): [description]. Defaults to 0.
+        marketto (int, optional): [description]. Defaults to 0.
+        verbose (bool, optional): Debug. Defaults to True.
+
+    Returns:
+        [type]: List of companies
+    """
+    import yfinance as yf
+    
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36'
         }
@@ -55,10 +66,21 @@ def get_listed_companies(market, marketfrom=0, marketto=0, verbose=True):
     return companies
 
 def get_listed_companies_from_cache(market, marketfrom=0, marketto=0, verbose=True):
+    """Get listed companies from MongoDB
+
+    Args:
+        market ([type]): Target market (e.g. helsinki)
+        marketfrom (int, optional): [description]. Defaults to 0.
+        marketto (int, optional): [description]. Defaults to 0.
+        verbose (bool, optional): Debug. Defaults to True.
+
+    Returns:
+        [type]: List of companies
+    """
     collection = db['nasdaq_'+market]
     entries = collection.find({})
     companies = []
-    for entry in entries:
+    for entry in entries[marketfrom:marketto]:
         company = Company(entry["name"], entry["symbol"], entry["CCY"], entry["ISIN"], entry["ICB"], entry["employees"], entry["industry"], entry["sector"], entry["website"])
         companies.append(company)
     return companies
@@ -75,6 +97,7 @@ if __name__ == '__main__':
     # Elecster Oyj A ELEAV
     # AS Tallink Grupp FDR TALLINK
     # Lehto Group Uudet 2020 LEHTON0120
+    collection.delete_many({})
     for company in companies:
         collection.insert_one(company.__dict__)
 
