@@ -145,22 +145,27 @@ def get_result_by_host():
     closed = 0
     for entry in entries:
         if entry["address"] in open_https_addresses and entry["address"] in open_http_addresses:
-            print('OPEN   - address: %s  \tdomain: %s \t' % (entry["address"], entry["domain"]))
+            print('OPEN   - address: %s  \tport:80/443\tdomain: %s \t' % (format_address(entry["address"]), entry["domain"]))
             open=open+1
             open_http_and_https=open_http_and_https+1
-        if entry["address"] in open_https_addresses:
-            print('OPEN   - address: %s  \tdomain: %s \t' % (entry["address"], entry["domain"]))
+        elif entry["address"] in open_https_addresses:
+            print('OPEN   - address: %s  \tport:443\tdomain: %s \t' % (format_address(entry["address"]), entry["domain"]))
             open=open+1
             open_https=open_https+1
-        if entry["address"] in open_http_addresses:
-            print('OPEN   - address: %s  \tdomain: %s \t' % (entry["address"], entry["domain"]))
+        elif entry["address"] in open_http_addresses:
+            print('OPEN   - address: %s  \tport:80\t\tdomain: %s \t' % (format_address(entry["address"]), entry["domain"]))
             open=open+1
             open_http=open_http+1
         else:
-            print('CLOSED - address: %s  \tdomain: %s \t' % (entry["address"], entry["domain"]))
+            print('CLOSED - address: %s  \tport:-\t\tdomain: %s \t' % (format_address(entry["address"]), entry["domain"]))
             closed=closed+1
     print('Result: Open: %s, Closed: %s' % (open, closed))
     print('Open http: %s, Open https: %s, Open both: %s' % (open_http, open_https, open_http_and_https))
+
+def format_address(address):
+    if len(address) < 13:
+        return address + "\t"
+    return address
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='pyTLScanner - Nmap scanner')
