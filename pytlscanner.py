@@ -12,11 +12,13 @@ import json
 import sslyze
 from sslyze import ScanCommand
 import requests
+import copy
 
 from datetime import datetime
 
+client = MongoClient('mongodb://localhost:27017/')
+
 def run_ssllabs_scan(market, debug, marketfrom, marketto):
-    client = MongoClient('mongodb://localhost:27017/')
     db = client['jyu_tls_research']
     collection = db['ssllabs_'+market]
 
@@ -49,20 +51,41 @@ def run_sslyze_scan(market, debug, marketfrom, marketto):
         marketfrom (int, optional): [description]. Defaults to 0.
         marketto (int, optional): [description]. Defaults to 0.
     """
-    client = MongoClient('mongodb://localhost:27017/')
     db = client['jyu_tls_research']
     collection = db['sslyze_'+market]
+    hosts = get_all_hosts(db)
+    open_https_addresses = get_addresses_with_open_https_port(db)
 
-    companies = get_listed_companies_from_cache(market, marketfrom, marketto)
-    for company in companies:
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"{current_time} {company.website}")
-        scanner_results = scan(company.website.replace('http://',''), debug)
-        for scan_result in scanner_results:
-            result_as_json = json.loads(json.dumps(asdict(scan_result), cls=sslyze.JsonEncoder))
-            company.sslyze_result = result_as_json
-            pprint(result_as_json)
-            collection.insert_one(company.__dict__)
+    for index, host in enumerate(hosts):
+        if host['address'] in open_https_addresses:
+            domain = host['domain']
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"{current_time} \t index: {index} \t domain: {domain}")
+            scanner_results = scan(domain, debug)
+            for scan_result in scanner_results:
+                result_as_json = json.loads(json.dumps(asdict(scan_result), cls=sslyze.JsonEncoder))
+                result_as_json2 = copy.deepcopy(result_as_json)
+
+                for i_deploy, deploy in enumerate(result_as_json2['scan_commands_results']['certificate_info']['certificate_deployments']):
+                    if 'ocsp_response' in deploy and deploy['ocsp_response'] is not None:
+                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['ocsp_response']['serial_number']
+                    if 'received_certificate_chain' in deploy:
+                        for i_cert, certs in enumerate(deploy['received_certificate_chain']):
+                            del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['serial_number']
+                            del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['public_key']['rsa_n']
+                            del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['public_key']['ec_x']
+                            del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['public_key']['ec_y']
+                        if 'path_validation_results' in deploy:
+                            for i_path, path in enumerate(deploy['path_validation_results']):
+                                if 'verified_certificate_chain' in path and path['verified_certificate_chain'] is not None:
+                                    for i_chain, chain in enumerate(path['verified_certificate_chain']):
+                                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['serial_number']
+                                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['public_key']['rsa_n']
+                                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['public_key']['ec_x']
+                                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['public_key']['ec_y']
+                
+                #pprint(result_as_json)
+                collection.insert_one(result_as_json)
 
     client.close()
 
@@ -96,6 +119,24 @@ def redirect_to_https(host):
         return True
     else:
         return False
+
+def get_all_hosts(db):
+    collection = db['hosts']
+    entries = collection.find({"address": {"$ne":""}})
+    hosts = []
+    for entry in entries:
+        hosts.append(entry)
+    entries.close()
+    return hosts
+
+def get_addresses_with_open_https_port(db):
+    collection = db['nmap']
+    entries = collection.find({"tcp.443.state":"open"}, {"addresses":1, "tcp.443.state":1})
+    addresses = []
+    for entry in entries:
+        addresses.append(entry["addresses"]["ipv4"])
+    entries.close()
+    return addresses
 
 if __name__ == '__main__':
     run_sslyze_scan(args.market, args.debug, int(args.companiesfrom), int(args.companiesto))
