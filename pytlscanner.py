@@ -53,6 +53,7 @@ def run_sslyze_scan(market, debug, marketfrom, marketto):
     """
     db = client['jyu_tls_research']
     collection = db['sslyze_'+market]
+    error_collection = db['errors']
     hosts = get_all_hosts(db)
     open_https_addresses = get_addresses_with_open_https_port(db)
 
@@ -61,31 +62,14 @@ def run_sslyze_scan(market, debug, marketfrom, marketto):
             domain = host['domain']
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{current_time} \t index: {index} \t domain: {domain}")
-            scanner_results = scan(domain, debug)
-            for scan_result in scanner_results:
-                result_as_json = json.loads(json.dumps(asdict(scan_result), cls=sslyze.JsonEncoder))
-                result_as_json2 = copy.deepcopy(result_as_json)
-
-                for i_deploy, deploy in enumerate(result_as_json2['scan_commands_results']['certificate_info']['certificate_deployments']):
-                    if 'ocsp_response' in deploy and deploy['ocsp_response'] is not None:
-                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['ocsp_response']['serial_number']
-                    if 'received_certificate_chain' in deploy:
-                        for i_cert, certs in enumerate(deploy['received_certificate_chain']):
-                            del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['serial_number']
-                            del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['public_key']['rsa_n']
-                            del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['public_key']['ec_x']
-                            del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['public_key']['ec_y']
-                        if 'path_validation_results' in deploy:
-                            for i_path, path in enumerate(deploy['path_validation_results']):
-                                if 'verified_certificate_chain' in path and path['verified_certificate_chain'] is not None:
-                                    for i_chain, chain in enumerate(path['verified_certificate_chain']):
-                                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['serial_number']
-                                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['public_key']['rsa_n']
-                                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['public_key']['ec_x']
-                                        del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['public_key']['ec_y']
-                
+            try:
+                scanner_results = scan(domain, debug)
+                result_as_json = load_scan_result(scanner_results)
                 #pprint(result_as_json)
                 collection.insert_one(result_as_json)
+            except TypeError as e:
+                msg = { "error_msg": str(e) , "host": host['domain']}
+                error_collection.insert_one(msg)
 
     client.close()
 
@@ -111,6 +95,30 @@ def scan(host, debug):
         #ScanCommand.SESSION_RESUMPTION_RATE,
     }
     return sslyze_scan(host, scan_commands, debug)
+
+def load_scan_result(scanner_results):
+    for scan_result in scanner_results:
+        result_as_json = json.loads(json.dumps(asdict(scan_result), cls=sslyze.JsonEncoder))
+        result_as_json2 = copy.deepcopy(result_as_json)
+
+        for i_deploy, deploy in enumerate(result_as_json2['scan_commands_results']['certificate_info']['certificate_deployments']):
+            if 'ocsp_response' in deploy and deploy['ocsp_response'] is not None:
+                del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['ocsp_response']['serial_number']
+            if 'received_certificate_chain' in deploy:
+                for i_cert, certs in enumerate(deploy['received_certificate_chain']):
+                    del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['serial_number']
+                    del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['public_key']['rsa_n']
+                    del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['public_key']['ec_x']
+                    del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['received_certificate_chain'][i_cert]['public_key']['ec_y']
+                if 'path_validation_results' in deploy:
+                    for i_path, path in enumerate(deploy['path_validation_results']):
+                        if 'verified_certificate_chain' in path and path['verified_certificate_chain'] is not None:
+                            for i_chain, chain in enumerate(path['verified_certificate_chain']):
+                                del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['serial_number']
+                                del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['public_key']['rsa_n']
+                                del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['public_key']['ec_x']
+                                del result_as_json['scan_commands_results']['certificate_info']['certificate_deployments'][i_deploy]['path_validation_results'][i_path]['verified_certificate_chain'][i_chain]['public_key']['ec_y']
+    return result_as_json
 
 def redirect_to_https(host):
     r = requests.get("http://"+host, allow_redirects=True)
