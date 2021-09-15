@@ -68,17 +68,21 @@ def run_sslyze_scan(market, debug, marketfrom, marketto):
                 #pprint(result_as_json)
                 collection.insert_one(result_as_json)
             except TypeError as e:
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"{current_time} TypeError with domain: {domain}")
-                msg = { "error_msg": str(e) , "host": host['domain']}
+                msg = error_message(e, host['domain'])
                 error_collection.insert_one(msg)
             except KeyError as e:
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"{current_time} KeyError with domain: {domain}")
-                msg = { "error_msg": str(e) , "host": host['domain']}
+                msg = error_message(e, host['domain'])
+                error_collection.insert_one(msg)
+            except sslyze.errors.ServerHostnameCouldNotBeResolved as e:
+                msg = error_message(e, host['domain'])
                 error_collection.insert_one(msg)
 
     client.close()
+
+def error_message(error, domain):
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{current_time} Error with domain: {domain}")
+    return { "error_msg": str(error) , "host": domain}
 
 def scan(host, debug):
     scan_commands={
