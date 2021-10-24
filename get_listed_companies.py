@@ -90,13 +90,6 @@ if __name__ == '__main__':
     collection = db['nasdaq_'+market]
 
     companies = get_listed_companies(market)
-    # Puutteelliset:
-    # Yleiselektroniikka Oyj YEINT
-    # Panostaja Oyj PNA1V
-    # Investors House Oyj INVEST
-    # Elecster Oyj A ELEAV
-    # AS Tallink Grupp FDR TALLINK
-    # Lehto Group Uudet 2020 LEHTON0120
     collection.delete_many({})
     for company in companies:
         collection.insert_one(company.__dict__)
