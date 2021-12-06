@@ -2,8 +2,8 @@
 
 ## Virtualenv
 
-    python -m venv pytlscanner-env
-    .\pytlscanner-env\Scripts\activate
+    python -m venv env
+    .\env\Scripts\activate
     deactivate
 
 ## Install dependencies
