@@ -2,76 +2,115 @@
 
 from pymongo import MongoClient
 from pprint import pprint
-import sslyze
-from sslyze import ScanCommand
 
 client = MongoClient('mongodb://localhost:27017/')
-db = client['jyu_tls_research']
-collection = db['sslyze_helsinki']
 
-def get_support_of_ecdh():
-    is_true = collection.count_documents({"sslyze_result.scan_commands_results.elliptic_curves.supports_ecdh_key_exchange":{ "$eq": True }})
-    is_false = collection.count_documents({"sslyze_result.scan_commands_results.elliptic_curves.supports_ecdh_key_exchange":{ "$eq": False }})
-    print("Support ECDH: " + str(is_true))
-    print("Doesn't support ECDH: " + str(is_false))
+recommended_ciphers = [
+    'TLS_AES_128_CCM_8_SHA256',
+    'TLS_AES_128_CCM_SHA256',
+    'TLS_AES_128_GCM_SHA256',
+    'TLS_AES_256_GCM_SHA384',
+    'TLS_CHACHA20_POLY1305_SHA256',
+    'TLS_DHE_RSA_WITH_AES_128_CBC_SHA',
+    'TLS_DHE_RSA_WITH_AES_128_CBC_SHA256',
+    'TLS_DHE_RSA_WITH_AES_128_CCM',
+    'TLS_DHE_RSA_WITH_AES_128_CCM_8',
+    'TLS_DHE_RSA_WITH_AES_128_GCM_SHA256',
+    'TLS_DHE_RSA_WITH_AES_256_CBC_SHA',
+    'TLS_DHE_RSA_WITH_AES_256_CBC_SHA256',
+    'TLS_DHE_RSA_WITH_AES_256_CCM',
+    'TLS_DHE_RSA_WITH_AES_256_CCM_8',
+    'TLS_DHE_RSA_WITH_AES_256_GCM_SHA384',
+    'TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256',
+    'TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256',
+    'TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384',
+    'TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256',
+    'TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384',
+    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA',
+    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256',
+    'TLS_ECDHE_ECDSA_WITH_AES_128_CCM',
+    'TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8',
+    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256',
+    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA',
+    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384',
+    'TLS_ECDHE_ECDSA_WITH_AES_256_CCM',
+    'TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8',
+    'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384',
+    'TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256',
+    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA',
+    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256',
+    'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256',
+    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA',
+    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384',
+    'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384',
+    'TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256',
+]
 
-def get_support_tls_compression():
-    is_true = collection.count_documents({"sslyze_result.scan_commands_results.tls_compression.supports_compression":{ "$eq": True }})
-    is_false = collection.count_documents({"sslyze_result.scan_commands_results.tls_compression.supports_compression":{ "$eq": False }})
-    print("Support TLS compression: " + str(is_true))
-    print("Doesn't support TLS compression: " + str(is_false))
+def get_ciphersuites(tls_version):
+    aggregate_match = "scan_commands_results.{}.accepted_cipher_suites".format(tls_version)
+    results = client['jyu_tls_research']['view_sslyze_helsinki_no_errors'].aggregate([
+        {
+            '$match': {
+                '$and': [
+                    {
+                        aggregate_match: {
+                            '$exists': True,
+                            '$ne': []
+                        }
+                    }
+                ]
+            }
+        },
+        #{
+        #    '$limit': 100
+        #}
+    ])
 
-def get_hsts_preload():
-    is_true = collection.count_documents({"sslyze_result.scan_commands_results.http_headers.strict_transport_security_header.preload":{ "$eq": True }})
-    is_false = collection.count_documents({"sslyze_result.scan_commands_results.http_headers.strict_transport_security_header.preload":{ "$eq": False }})
-    print("Support HSTS preload: " + str(is_true))
-    print("Doesn't support HSTS preload: " + str(is_false))
+    weak_hosts = []
+    for result in results:
+        hostname = result['server_info']['server_location']['hostname']
+        cipher_suites = result['scan_commands_results'][tls_version]['accepted_cipher_suites']
+        for cipher in cipher_suites:
+            if not cipher['cipher_suite']['name'] in recommended_ciphers:
+                #print(hostname, cipher['cipher_suite']['name'])
+                weak_hosts.append(hostname)
 
-def get_heartbleed():
-    is_true = collection.count_documents({"sslyze_result.scan_commands_results.heartbleed.is_vulnerable_to_heartbleed":{ "$eq": True }})
-    is_false = collection.count_documents({"sslyze_result.scan_commands_results.heartbleed.is_vulnerable_to_heartbleed":{ "$eq": False }})
-    print("Vulnerable to Heartbleed: " + str(is_true))
-    print("Doesn't vulnerable to Heartbleed: " + str(is_false))
+    weak_hosts = list(set(weak_hosts))
+    pprint(weak_hosts)
+    print('Count: ', len(weak_hosts))
+    client.close()
 
-def get_robot():
-    all = collection.count_documents({})
-    is_false = collection.count_documents({"sslyze_result.scan_commands_results.robot.robot_result": {"$regex":"^NOT_VULNERABLE"} })
-    print("Vulnerable to Robot: " + str((int(all)-int(is_false))))
-    print("Doesn't vulnerable to Robot: " + str(is_false))
+def get_all_hosts():
+    results = client['jyu_tls_research']['view_sslyze_helsinki_no_errors'].find({},{'server_info.server_location.hostname': 1})
+    hosts = []
+    for result in results:
+        hosts.append(result['server_info']['server_location']['hostname'])
+    client.close()
+    print('All hosts: ', len(hosts))
+    return set(hosts)
 
-def get_openssl_ccs_injection():
-    is_true = collection.count_documents({"sslyze_result.scan_commands_results.openssl_ccs_injection.is_vulnerable_to_ccs_injection":{ "$eq": True }})
-    is_false = collection.count_documents({"sslyze_result.scan_commands_results.openssl_ccs_injection.is_vulnerable_to_ccs_injection":{ "$eq": False }})
-    print("Vulnerable to CCS Injection: " + str(is_true))
-    print("Doesn't vulnerable to CCS Injection: " + str(is_false))
-
-def get_tls_fallback_scsv():
-    is_true = collection.count_documents({"sslyze_result.scan_commands_results.tls_fallback_scsv.supports_fallback_scsv":{ "$eq": True }})
-    is_false = collection.count_documents({"sslyze_result.scan_commands_results.tls_fallback_scsv.supports_fallback_scsv":{ "$eq": False }})
-    print("Support TLS fallback: " + str(is_true))
-    print("Doesn't support TLS fallback: " + str(is_false))
-
-def get_session_renegation():
-    is_true = collection.count_documents({"sslyze_result.scan_commands_results.session_renegotiation.accepts_client_renegotiation":{ "$eq": True }})
-    is_false = collection.count_documents({"sslyze_result.scan_commands_results.session_renegotiation.accepts_client_renegotiation":{ "$eq": False }})
-    print("Accepts client renegotiation: " + str(is_true))
-    print("Reject client renegotiation: " + str(is_false))
-
-def get_session_secure_renegation():
-    is_true = collection.count_documents({"sslyze_result.scan_commands_results.session_renegotiation.supports_secure_renegotiation":{ "$eq": True }})
-    is_false = collection.count_documents({"sslyze_result.scan_commands_results.session_renegotiation.supports_secure_renegotiation":{ "$eq": False }})
-    print("Supports secure renegotiation: " + str(is_true))
-    print("Doesn't support secure renegotiation: " + str(is_false))
-
+def get_hosts_from_mongo_view(view):
+    results = client['jyu_tls_research'][view].find()
+    hosts = []
+    for result in results:
+        #print(result)
+        hosts.append(result['_id'])
+    client.close()
+    print(view, len(hosts))
+    return set(hosts)
 
 if __name__ == '__main__':
-    get_support_of_ecdh()
-    get_support_tls_compression()
-    get_hsts_preload()
-    get_robot()
-    get_heartbleed()
-    get_openssl_ccs_injection()
-    get_tls_fallback_scsv()
-    get_session_renegation()
-    get_session_secure_renegation()
-    client.close()
+    #get_ciphersuites('tls_1_2_cipher_suites')
+
+    hosts = get_all_hosts()
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_tls_version')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_cipher_suites')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_tls_compression')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_0RTT')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_ocsp')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_certificate_valid_subject')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_certificate_lifespan')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_certificate_validity_period')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_certificate_keysize')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_hsts')
+    print('Meets all recommendations: ', len(hosts))

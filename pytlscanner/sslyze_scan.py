@@ -6,7 +6,6 @@ from sslyze import (
     ScanCommand,
 )
 from sslyze.errors import ConnectionToServerFailed
-import sys
 from pprint import pprint
 
 def sslyze_scan(host, scan_commands, debug=False) -> None:
@@ -40,21 +39,7 @@ def print_results(scanner):
     for server_scan_result in scanner.get_results():
         print(f"\nResults for {server_scan_result.server_info.server_location.hostname}:")
 
-        #cipher_suites(server_scan_result, "ScanCommand.SSL_2_0_CIPHER_SUITES")
-        #cipher_suites(server_scan_result, "ScanCommand.SSL_3_0_CIPHER_SUITES")
-        #cipher_suites(server_scan_result, "ScanCommand.TLS_1_0_CIPHER_SUITES")
-        #cipher_suites(server_scan_result, "ScanCommand.TLS_1_1_CIPHER_SUITES")
-        #cipher_suites(server_scan_result, "ScanCommand.TLS_1_2_CIPHER_SUITES")
-        #cipher_suites(server_scan_result, "ScanCommand.TLS_1_3_CIPHER_SUITES")
-
-        #get_common(server_scan_result, "ScanCommand.HEARTBLEED")
-        #get_common(server_scan_result, "ScanCommand.ELLIPTIC_CURVES")
-        #get_common(server_scan_result, "ScanCommand.CERTIFICATE_INFO")
-
-        #get_http_headers(server_scan_result)
-        #get_certificate_info(server_scan_result)
-
-         # Scan commands that were run with errors
+        # Scan commands that were run with errors
         for scan_command, error in server_scan_result.scan_commands_errors.items():
             print(f"\nError when running {scan_command}:\n{error.exception_trace}")
 
@@ -94,23 +79,6 @@ def get_common(server_scan_result, scan_literal):
 
 if __name__ == '__main__':
     scan_commands={
-            ScanCommand.CERTIFICATE_INFO,
-            #ScanCommand.SSL_2_0_CIPHER_SUITES,
-            #ScanCommand.SSL_3_0_CIPHER_SUITES,
-            #ScanCommand.TLS_1_0_CIPHER_SUITES,
-            #ScanCommand.TLS_1_1_CIPHER_SUITES,
-            #ScanCommand.TLS_1_2_CIPHER_SUITES,
-            #ScanCommand.TLS_1_3_CIPHER_SUITES,
-            #ScanCommand.TLS_1_3_EARLY_DATA,
-            #ScanCommand.HEARTBLEED,
-            #ScanCommand.ROBOT,
-            #ScanCommand.ELLIPTIC_CURVES,
-            #ScanCommand.HTTP_HEADERS,
-            #ScanCommand.TLS_COMPRESSION,
-            #ScanCommand.TLS_FALLBACK_SCSV,
-            #ScanCommand.OPENSSL_CCS_INJECTION,
-            #ScanCommand.SESSION_RENEGOTIATION,
-            #ScanCommand.SESSION_RESUMPTION,
-            #ScanCommand.SESSION_RESUMPTION_RATE,
+            ScanCommand.CERTIFICATE_INFO
         }
     sslyze_scan("cloudflare.com", scan_commands, True)

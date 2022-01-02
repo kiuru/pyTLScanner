@@ -2,10 +2,9 @@
 
 from pytlscanner import resultsFromCache
 from pytlscanner import sslyze_scan
-from get_listed_companies import get_listed_companies, get_listed_companies_from_cache
 from pymongo import MongoClient
 import time
-from argumentparser import args
+import argparse
 from pprint import pprint
 from dataclasses import asdict
 import json
@@ -18,38 +17,18 @@ from datetime import datetime
 
 client = MongoClient('mongodb://localhost:27017/')
 
-def run_ssllabs_scan(market, debug, marketfrom, marketto):
-    db = client['jyu_tls_research']
-    collection = db['ssllabs_'+market]
+list_of_market_choices = ["baltic", "copenhagen", "helsinki", "iceland", "stockholm", "first-north", "first-north-premier"]
+parser = argparse.ArgumentParser(description='pyTLScanner')
+parser.add_argument("--market", dest='market', help="Select a target market", choices=list_of_market_choices)
+parser.add_argument('--debug', action="store_true", dest="debug", help="Debug logging")
+args = parser.parse_args()
 
-    companies = get_listed_companies(market, marketfrom, marketto)
-    for company in companies:
-        result = resultsFromCache(company.website, debug)
-        status = result["status"]
-        pprint(result)
-        # {'errors': [{'message': 'State: SHUT_DOWN Operation: class com.hazelcast.map.impl.operation.GetOperation'}]}
-        # {"errors":[{"message":"Running at full capacity. Please try again later."}]}
-
-        while status != 'READY':
-            result = resultsFromCache(company.website, debug)
-            status = result["status"]
-            print(company.website, status)
-            time.sleep(3)
-        
-        company.ssllabs_result = result
-        #collection.insert_one(result)
-        collection.insert_one(company.__dict__)
-
-    client.close()
-
-def run_sslyze_scan(market, debug, marketfrom, marketto):
+def run_sslyze_scan(market, debug):
     """Run SSLyze scanner against selected market's websites
 
     Args:
         market ([type]): Target market (e.g. helsinki)
         debug ([type]): Debug SSLyze
-        marketfrom (int, optional): [description]. Defaults to 0.
-        marketto (int, optional): [description]. Defaults to 0.
     """
     db = client['jyu_tls_research']
     collection = db['sslyze_'+market]
@@ -158,5 +137,5 @@ def get_addresses_with_open_https_port(db):
     return addresses
 
 if __name__ == '__main__':
-    run_sslyze_scan(args.market, args.debug, int(args.companiesfrom), int(args.companiesto))
+    run_sslyze_scan(args.market, args.debug)
     

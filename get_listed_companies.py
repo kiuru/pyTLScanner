@@ -6,14 +6,11 @@ from models.company import Company
 client = MongoClient('mongodb://localhost:27017/')
 db = client['jyu_tls_research']
 
-def get_listed_companies(market, marketfrom=0, marketto=0, verbose=True):
+def get_listed_companies(market, verbose=True):
     """Get listed companies from Nasdaq's web site
 
     Args:
         market ([type]): Target market (e.g. helsinki)
-        marketfrom (int, optional): [description]. Defaults to 0.
-        marketto (int, optional): [description]. Defaults to 0.
-        verbose (bool, optional): Debug. Defaults to True.
 
     Returns:
         [type]: List of companies
@@ -34,11 +31,7 @@ def get_listed_companies(market, marketfrom=0, marketto=0, verbose=True):
     }
 
     companies = []
-    #for row in soup.find(id="listedCompanies").find("tbody").find_all("tr")[0:1]:
-    if marketto == 0:
-        rows = soup.find(id="listedCompanies").find("tbody").find_all("tr")
-    else:
-        rows = soup.find(id="listedCompanies").find("tbody").find_all("tr")[marketfrom:marketto]
+    rows = soup.find(id="listedCompanies").find("tbody").find_all("tr")
     for row in rows:
         cells = row.find_all("td")
         name = cells[0].get_text()
@@ -65,13 +58,11 @@ def get_listed_companies(market, marketfrom=0, marketto=0, verbose=True):
 
     return companies
 
-def get_listed_companies_from_cache(market, marketfrom=0, marketto=0, verbose=True):
+def get_listed_companies_from_cache(market, verbose=True):
     """Get listed companies from MongoDB
 
     Args:
         market ([type]): Target market (e.g. helsinki)
-        marketfrom (int, optional): [description]. Defaults to 0.
-        marketto (int, optional): [description]. Defaults to 0.
         verbose (bool, optional): Debug. Defaults to True.
 
     Returns:
@@ -80,7 +71,7 @@ def get_listed_companies_from_cache(market, marketfrom=0, marketto=0, verbose=Tr
     collection = db['nasdaq_'+market]
     entries = collection.find({})
     companies = []
-    for entry in entries[marketfrom:marketto]:
+    for entry in entries:
         company = Company(entry["name"], entry["symbol"], entry["CCY"], entry["ISIN"], entry["ICB"], entry["employees"], entry["industry"], entry["sector"], entry["website"])
         companies.append(company)
     return companies

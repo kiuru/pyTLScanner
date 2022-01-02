@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 
-from get_listed_companies import get_listed_companies, get_listed_companies_from_cache
+from get_listed_companies import get_listed_companies_from_cache
 import tldextract
-from argumentparser import args
-from pprint import pprint
 
-def run_scan(market, debug, marketfrom, marketto):
+def run_scan(market, debug):
 
-    companies = get_listed_companies_from_cache(market, marketfrom, marketto, debug)
+    companies = get_listed_companies_from_cache(market, debug)
     domain_list = []
     for company in companies:
         ext_domain = tldextract.extract(company.website)
@@ -19,5 +17,5 @@ def run_scan(market, debug, marketfrom, marketto):
         print(domain)
 
 if __name__ == '__main__':
-    run_scan(args.market, args.debug, int(args.companiesfrom), int(args.companiesto))
+    run_scan('helsinki', True)
     
