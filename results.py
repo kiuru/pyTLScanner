@@ -108,6 +108,7 @@ if __name__ == '__main__':
     hosts = hosts - get_hosts_from_mongo_view('view_rec_tls_compression')
     hosts = hosts - get_hosts_from_mongo_view('view_rec_0RTT')
     hosts = hosts - get_hosts_from_mongo_view('view_rec_ocsp')
+    hosts = hosts - get_hosts_from_mongo_view('view_rec_certificate_valid_subject')
     hosts = hosts - get_hosts_from_mongo_view('view_rec_certificate_lifespan')
     hosts = hosts - get_hosts_from_mongo_view('view_rec_certificate_validity_period')
     hosts = hosts - get_hosts_from_mongo_view('view_rec_certificate_keysize')
