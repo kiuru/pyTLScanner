@@ -51,7 +51,7 @@ Do port scan against HTTPS default port 443.
 
 ### 4. Run SSL/TLS scan with SSLyze
 
-    python _pytlscanner.py --market="helsinki"
+    python pytlscanner.py --market="helsinki"
 
 ## SSLyze mongoexport
 
